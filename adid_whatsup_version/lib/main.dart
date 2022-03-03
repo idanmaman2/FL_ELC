@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import '/Widgets/bluetooth_device_card.dart';
+import 'package:latlong2/latlong.dart' as latLng;
 
-import 'bluetooth_device_card.dart';
+import 'Widgets/Map/map_widg.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,42 +22,25 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.yellow,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'ADID GPS FINDER'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
+  MyHomePage({Key? key, required this.title}) : super(key: key);
   final String title;
+  ValueNotifier<Position?> _notifer = ValueNotifier<Position?>(null);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String _counter = "";
+  bool _screenLock = false;
+
   FlutterBlue flutterBlue = FlutterBlue.instance;
 
   Future<List<ScanResult>> _incrementCounter() async {
@@ -69,10 +57,15 @@ class _MyHomePageState extends State<MyHomePage> {
     // TODO: implement initState
     super.initState();
     print("testing");
-
-    // Start scanning
-
-// Listen to scan results
+    Timer.periodic(Duration(milliseconds: 200), (T) {
+      if (!this._screenLock) {
+        this._screenLock = true;
+        (Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
+            .then((_value) =>
+                (widget._notifer as ValueNotifier<Position?>).value = _value));
+        this._screenLock = false;
+      }
+    });
   }
 
   @override
@@ -82,6 +75,14 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Column(children: [
+        Expanded(
+            flex: 1,
+            child: ValueListenableBuilder(
+              builder: (C, x, ch) {
+                return Text(x.toString());
+              },
+              valueListenable: widget._notifer as ValueListenable<Position?>,
+            )),
         Expanded(
             flex: 1,
             child: Center(
@@ -99,6 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
               future: Geolocator.getCurrentPosition(
                   desiredAccuracy: LocationAccuracy.high),
             ))),
+        
         Expanded(
           flex: 1,
           child: FutureBuilder(
@@ -124,9 +126,13 @@ class _MyHomePageState extends State<MyHomePage> {
       ]),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => MapWid(notifer: widget._notifer)),
+        ),
+        tooltip: 'Map',
+        child: const Icon(Icons.map),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }

@@ -37,6 +37,8 @@ dependencies:
   flutter_blue: ^0.8.0
   auto_size_text: ^3.0.0
   geolocator: ^7.7.1
+  flutter_map: ^0.14.0
+  latlong: ^0.6.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -60,8 +62,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets\ps1.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
