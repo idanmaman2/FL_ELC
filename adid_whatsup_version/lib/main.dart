@@ -1,12 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import '/Widgets/bluetooth_device_card.dart';
-import 'package:latlong2/latlong.dart' as latLng;
-
 import 'Widgets/Map/map_widg.dart';
 
 void main() {
@@ -32,7 +28,7 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key? key, required this.title}) : super(key: key);
   final String title;
-  ValueNotifier<Position?> _notifer = ValueNotifier<Position?>(null);
+  final ValueNotifier<Position?> _notifer = ValueNotifier<Position?>(null);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -43,29 +39,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   FlutterBlue flutterBlue = FlutterBlue.instance;
 
-  Future<List<ScanResult>> _incrementCounter() async {
-    List<ScanResult> dvItems =
-        await flutterBlue.startScan(timeout: const Duration(seconds: 4));
-
-    dvItems = dvItems.where((element) => element.device.name != "").toList();
-    dvItems.sort((x, y) => x.rssi.compareTo(y.rssi) * -1);
-    return dvItems;
-  }
-
   @override
   void initState() {
-    // TODO: implement initState
+    flutterBlue.startScan(timeout: const Duration(seconds: 50));
     super.initState();
     print("testing");
-    Timer.periodic(Duration(milliseconds: 200), (T) {
-      if (!this._screenLock) {
-        this._screenLock = true;
-        (Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
-            .then((_value) =>
-                (widget._notifer as ValueNotifier<Position?>).value = _value));
-        this._screenLock = false;
-      }
-    });
   }
 
   @override
@@ -76,53 +54,47 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Column(children: [
         Expanded(
-            flex: 1,
-            child: ValueListenableBuilder(
-              builder: (C, x, ch) {
-                return Text(x.toString());
+          flex: 4,
+          child:
+              StreamBuilder(stream: flutterBlue.scanResults.asyncMap((dvItems) {
+            dvItems =
+                dvItems.where((element) => element.device.name != "").toList();
+            dvItems.sort((x, y) => x.rssi.compareTo(y.rssi) * -1);
+            return dvItems;
+          }), builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+            if (!snapshot.hasData) {
+              return const CircularProgressIndicator();
+            }
+            if (snapshot.connectionState == ConnectionState.done) {}
+
+            return ListView.builder(
+              itemCount: (snapshot.data as List<ScanResult>).length,
+              itemBuilder: (context, index) {
+                ScanResult dv = (snapshot.data as List<ScanResult>)[index];
+                print(dv);
+                return BCard(device: dv);
               },
-              valueListenable: widget._notifer as ValueListenable<Position?>,
-            )),
-        Expanded(
-            flex: 1,
-            child: Center(
-                child: FutureBuilder(
-              builder: (context, projectSnap) {
-                if (projectSnap.connectionState == ConnectionState.none &&
-                    projectSnap.hasData == null) {
-                  print('project snapshot data is: ${projectSnap.data}');
-                  return Text("Failed");
-                }
-                if (!projectSnap.hasData)
-                  return Center(child: CircularProgressIndicator());
-                return Text(projectSnap.data.toString());
-              },
-              future: Geolocator.getCurrentPosition(
-                  desiredAccuracy: LocationAccuracy.high),
-            ))),
-        
+            );
+          }),
+        ),
         Expanded(
           flex: 1,
-          child: FutureBuilder(
-            builder: (context, projectSnap) {
-              if (projectSnap.connectionState == ConnectionState.none &&
-                  projectSnap.hasData == null) {
-                print('project snapshot data is: ${projectSnap.data}');
-                return Text("Failed");
-              }
-              if (!projectSnap.hasData)
-                return Center(child: CircularProgressIndicator());
-              return ListView.builder(
-                itemCount: (projectSnap.data as List<ScanResult>).length,
-                itemBuilder: (context, index) {
-                  ScanResult dv = (projectSnap.data as List<ScanResult>)[index];
-                  return BCard(device: dv);
-                },
-              );
-            },
-            future: _incrementCounter(),
-          ),
-        ),
+          child: StreamBuilder(
+              stream: Geolocator.getPositionStream(
+                  desiredAccuracy: LocationAccuracy.high),
+              builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+                if (!snapshot.hasData) {
+                  return const CircularProgressIndicator();
+                }
+                if (snapshot.connectionState == ConnectionState.done) {}
+                Future.delayed(Duration(milliseconds: 15)).then((value) =>
+                    widget._notifer.value = snapshot.data as Position);
+                return Text(
+                  snapshot.data.toString(),
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                );
+              }),
+        )
       ]),
 
       floatingActionButton: FloatingActionButton(
